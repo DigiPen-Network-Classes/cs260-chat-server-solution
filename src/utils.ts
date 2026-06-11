@@ -68,6 +68,7 @@ export const startHeartbeat = () => {
         for (const [, socket] of ConnectedClients) {
             if (socket.data.awaitingPong) {
                 Log.warning(`${socket.data.name} did not respond to PING - disconnecting`);
+                socket.data.disconnecting = true;
                 socket.end();
                 continue;
             }

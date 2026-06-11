@@ -54,6 +54,7 @@ const shutdown = (signal: string) => {
     broadcast({ type: "SYSTEM", content: "Server is shutting down", timestamp: Date.now() });
 
     for (const [, socket] of ConnectedClients) {
+        socket.data.disconnecting = true;
         socket.end();
     }
 

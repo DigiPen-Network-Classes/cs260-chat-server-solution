@@ -2,6 +2,7 @@ export type SocketData = {
     uuid: string;
     name: string | null;
     awaitingPong: boolean;
+    disconnecting: boolean;  // set when the *server* intentionally ends the socket
     rateLimit: {
         count: number;
         windowStart: number;

@@ -88,9 +88,18 @@ successful `CONNECT`.
 { "type": "PONG" }
 ```
 
-> Note: `DISCONNECT` appears in the type definitions but is **not** currently
-> handled by the server — sending it returns an `ERROR` (`Unknown packet type`).
-> To leave, simply close the TCP connection.
+#### `DISCONNECT`
+Leave the chat gracefully. The server closes the connection; other clients
+receive a `SYSTEM` leave notice and an updated `CONNECTED_USERS` list. Only valid
+after a successful `CONNECT`.
+
+```json
+{ "type": "DISCONNECT" }
+```
+
+A well-behaved client **should send `DISCONNECT` before closing its socket.**
+Closing the TCP connection directly still works, but the server logs a warning
+that the client is not implementing the protocol correctly.
 
 ### Server → Client packets
 

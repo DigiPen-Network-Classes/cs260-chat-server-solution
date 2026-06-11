@@ -3,6 +3,7 @@ import { connect } from './connect';
 import Log from '../logger';
 import { chat } from './chat';
 import { pong } from './pong';
+import { disconnect } from './disconnect';
 import { send } from '../utils';
 
 export const data = (socket: Bun.Socket<SocketData>, data: Buffer<ArrayBufferLike>) => {
@@ -29,12 +30,16 @@ export const data = (socket: Bun.Socket<SocketData>, data: Buffer<ArrayBufferLik
     }
 
     switch (packet.type) {
-        case "CONNECT": connect(socket, packet); break;
-        case "CHAT":    chat(socket, packet); break;
-        case "PONG":    pong(socket); break;
+        case "CONNECT":    connect(socket, packet); break;
+        case "CHAT":       chat(socket, packet); break;
+        case "PONG":       pong(socket); break;
+        case "DISCONNECT": disconnect(socket); break;
         default:
-            Log.warning(`${socket.remoteAddress} sent unknown packet type: "${packet.type}"`);
-            send(socket, { type: "ERROR", reason: `Unknown packet type: "${packet.type}"` });
+            // `packet` is `never` here since the union is exhausted, but a client
+            // can still send an arbitrary type string at runtime
+            const unknownType = (packet as { type: string }).type;
+            Log.warning(`${socket.remoteAddress} sent unknown packet type: "${unknownType}"`);
+            send(socket, { type: "ERROR", reason: `Unknown packet type: "${unknownType}"` });
             break;
     }
 }

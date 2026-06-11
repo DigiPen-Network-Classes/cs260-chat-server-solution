@@ -37,9 +37,11 @@ protocol and `Bun.serve` for the HTTP health check. Both ports must be set.
 **Wire protocol** is JSON, one packet per line (`\n`-terminated, added in
 `send`). Packet shapes and the `ClientPacket`/`ServerPacket` discriminated
 unions live in `src/types.ts` — this is the source of truth for the protocol.
-Client→server types currently handled: `CONNECT`, `CHAT`, `PONG`. Server→client:
-`HELLO`, `CONNECTED_USERS`, `MESSAGE`, `SYSTEM`, `MESSAGE_HISTORY`, `PING`,
-`ERROR` (`DISCONNECT` is defined but not handled).
+Client→server types currently handled: `CONNECT`, `CHAT`, `PONG`, `DISCONNECT`.
+Server→client: `HELLO`, `CONNECTED_USERS`, `MESSAGE`, `SYSTEM`,
+`MESSAGE_HISTORY`, `PING`, `ERROR`. The full `ClientPacket`/`ServerPacket` unions
+are now exhaustively handled, so the `default` case in `data.ts` casts `packet`
+(typed `never`) to read the runtime `type` string.
 
 **Socket lifecycle / handler dispatch** (`src/handlers/`): `socketHandlers` in
 `handlers/index.ts` wires Bun's socket callbacks (`open`, `data`, `close`,
@@ -52,7 +54,13 @@ message: define the packet type in `types.ts`, add a handler file, and add a
 **Per-connection state** lives on `socket.data` (typed `SocketData`),
 initialized in `open.ts` with a generated UUID and rate-limit counters.
 Authentication = a successful `CONNECT` sets `socket.data.name`; the presence of
-`name` is what marks a socket as authenticated throughout the code.
+`name` is what marks a socket as authenticated throughout the code. The
+`disconnecting` flag is set whenever the *server* intentionally ends a socket
+(DISCONNECT handler, heartbeat timeout, shutdown); the `close` handler uses it to
+warn when an authenticated client closes its own TCP connection cleanly without
+having sent a `DISCONNECT` packet (a client-side protocol violation). Any code
+that calls `socket.end()` on a live, named client should set this flag first to
+avoid a false warning.
 
 **Global state** (`src/state.ts`): `ConnectedClients` is a `Map<uuid, socket>`
 (the authoritative roster) and `MessageHistory` is an in-memory bounded array.
