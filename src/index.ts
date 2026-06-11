@@ -1,8 +1,8 @@
 import Log from './logger';
 import { socketHandlers } from './handlers';
 import type { SocketData } from './types';
-import { broadcast } from './utils';
-import { ConnectedClients, MessageHistory } from './state';
+import { broadcast, startHeartbeat } from './utils';
+import { ConnectedClients, HEARTBEAT_INTERVAL, MessageHistory } from './state';
 
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
 const PORT       = process.env.PORT;
@@ -44,8 +44,12 @@ Bun.serve({
     }
 });
 
+const heartbeat = startHeartbeat();
+
 const shutdown = (signal: string) => {
     Log.warning(`Received ${signal}, shutting down...`);
+
+    clearInterval(heartbeat);
 
     broadcast({ type: "SYSTEM", content: "Server is shutting down", timestamp: Date.now() });
 
@@ -62,3 +66,4 @@ process.on("SIGINT",  () => shutdown("SIGINT"));
 
 Log.info(`TCP:  Listening on port ${PORT}`);
 Log.info(`HTTP: Listening on port ${HTTP_PORT}`);
+Log.info(`Heartbeat: PING every ${HEARTBEAT_INTERVAL}s`);

@@ -10,6 +10,9 @@ export const RATE_LIMIT_MAX      = Number(process.env.RATE_LIMIT_MAX) || 20;  //
 export const RATE_LIMIT_WINDOW   = Number(process.env.RATE_LIMIT_WINDOW) || 10;  // seconds
 export const RATE_LIMIT_COOLDOWN = Number(process.env.RATE_LIMIT_COOLDOWN) || 5;   // seconds penalty
 
+// heartbeat: PING each client every interval; disconnect if no PONG since the last one
+export const HEARTBEAT_INTERVAL = Number(process.env.HEARTBEAT_INTERVAL) || 30;  // seconds
+
 // UUID -> Socket map
 export const ConnectedClients = new Map<string, Bun.Socket<SocketData>>();
 

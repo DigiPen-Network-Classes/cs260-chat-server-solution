@@ -2,6 +2,7 @@ import type { SocketData, ClientPacket } from '../types';
 import { connect } from './connect';
 import Log from '../logger';
 import { chat } from './chat';
+import { pong } from './pong';
 import { send } from '../utils';
 
 export const data = (socket: Bun.Socket<SocketData>, data: Buffer<ArrayBufferLike>) => {
@@ -30,6 +31,7 @@ export const data = (socket: Bun.Socket<SocketData>, data: Buffer<ArrayBufferLik
     switch (packet.type) {
         case "CONNECT": connect(socket, packet); break;
         case "CHAT":    chat(socket, packet); break;
+        case "PONG":    pong(socket); break;
         default:
             Log.warning(`${socket.remoteAddress} sent unknown packet type: "${packet.type}"`);
             send(socket, { type: "ERROR", reason: `Unknown packet type: "${packet.type}"` });

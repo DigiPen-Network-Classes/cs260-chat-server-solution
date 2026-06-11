@@ -1,6 +1,7 @@
 export type SocketData = {
     uuid: string;
     name: string | null;
+    awaitingPong: boolean;
     rateLimit: {
         count: number;
         windowStart: number;

@@ -80,9 +80,17 @@ Send a chat message (only valid after a successful `CONNECT`).
 On success the message is broadcast to all clients as a `MESSAGE` packet (the
 sender included). It does **not** receive a separate acknowledgement.
 
-> Note: `DISCONNECT` and `PONG` packet types appear in the type definitions but
-> are **not** currently handled by the server — sending them returns an
-> `ERROR` (`Unknown packet type`). To leave, simply close the TCP connection.
+#### `PONG`
+Reply to a server `PING` (see [Heartbeat](#heartbeat)). Only valid after a
+successful `CONNECT`.
+
+```json
+{ "type": "PONG" }
+```
+
+> Note: `DISCONNECT` appears in the type definitions but is **not** currently
+> handled by the server — sending it returns an `ERROR` (`Unknown packet type`).
+> To leave, simply close the TCP connection.
 
 ### Server → Client packets
 
@@ -125,6 +133,12 @@ Recent message history, sent to a client right after it joins. Bounded to
 }
 ```
 
+#### `PING`
+A heartbeat probe. The client must reply with a `PONG` packet (see [Heartbeat](#heartbeat)).
+```json
+{ "type": "PING" }
+```
+
 #### `ERROR`
 An error occurred. Depending on the cause, the connection may be closed (see below).
 ```json
@@ -152,3 +166,11 @@ Each client may send up to `RATE_LIMIT_MAX` (default 20) `CHAT` messages per
 `RATE_LIMIT_WINDOW` (default 10s). Exceeding the limit triggers a cooldown of
 `RATE_LIMIT_COOLDOWN` (default 5s) during which `CHAT` packets are rejected with
 an `ERROR`. All limits are configurable via environment variables (see `.env.example`).
+
+### Heartbeat
+
+Every `HEARTBEAT_INTERVAL` (default 30s) the server sends a `PING` to each
+connected client. The client **must** reply with a `PONG`. If a client has not
+sent a `PONG` by the time the next `PING` round fires, the server considers the
+connection dead and closes it. A client therefore has up to one full interval to
+respond.

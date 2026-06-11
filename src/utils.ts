@@ -1,5 +1,5 @@
 import { type SocketData, type ServerPacket, type Message } from './types';
-import { ConnectedClients, MAX_HISTORY_LENGTH, MessageHistory, RATE_LIMIT_COOLDOWN, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from './state';
+import { ConnectedClients, HEARTBEAT_INTERVAL, MAX_HISTORY_LENGTH, MessageHistory, RATE_LIMIT_COOLDOWN, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW } from './state';
 import Log from './logger';
 
 // send a packet to a specific client
@@ -60,6 +60,22 @@ export const checkRateLimit = (socket: Bun.Socket<SocketData>): boolean => {
 export const pushHistory = (message: Message) => {
     if (MessageHistory.length >= MAX_HISTORY_LENGTH) MessageHistory.shift();
     MessageHistory.push(message);
+}
+
+// periodically PING every authenticated client; drop any that didn't PONG since the last round
+export const startHeartbeat = () => {
+    return setInterval(() => {
+        for (const [, socket] of ConnectedClients) {
+            if (socket.data.awaitingPong) {
+                Log.warning(`${socket.data.name} did not respond to PING - disconnecting`);
+                socket.end();
+                continue;
+            }
+
+            socket.data.awaitingPong = true;
+            send(socket, { type: "PING" });
+        }
+    }, HEARTBEAT_INTERVAL * 1000);
 }
 
 export const systemMessage = (content: string) => {
