@@ -56,7 +56,7 @@ export const connect = (socket: Bun.Socket<SocketData>, packet: ConnectPacket) =
     }
 
     // check if name is unique
-    const nameIsTaken = [ ...ConnectedClients.values() ].some(client => { return client.data.name === packet.name });
+    const nameIsTaken = [ ...ConnectedClients.values() ].some(client => { return client.data.name?.toLowerCase() === packet.name.toLowerCase() });
     if (nameIsTaken || packet.name.toLowerCase().includes("system")) {
         Log.warning(`${socket.remoteAddress} failed auth - name "${packet.name}" already taken`);
         send(socket, { type: "ERROR", reason: "Name already taken" });
