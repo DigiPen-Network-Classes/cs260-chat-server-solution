@@ -31,8 +31,24 @@ export const connect = (socket: Bun.Socket<SocketData>, packet: ConnectPacket) =
         return;
     }
 
-    // check token
-    if (packet.token !== AUTH_TOKEN) {
+    // the client must have completed the LOGIN/AUTHENTICATE challenge first
+    const nonce = socket.data.nonce;
+    if (!nonce) {
+        Log.warning(`${socket.remoteAddress} sent CONNECT without a prior LOGIN`);
+        send(socket, { type: "ERROR", reason: "Must LOGIN before CONNECT" });
+        socket.end();
+        return;
+    }
+
+    // the nonce is single-use regardless of the outcome below
+    socket.data.nonce = null;
+
+    // verify the challenge response: token must be hash(name + shared-secret + nonce)
+    const expectedToken = new Bun.CryptoHasher("sha256")
+        .update(packet.name + AUTH_TOKEN + nonce)
+        .digest("hex");
+
+    if (packet.token !== expectedToken) {
         Log.warning(`${socket.remoteAddress} failed auth - invalid token`);
         send(socket, { type: "ERROR", reason: "Invalid token" });
         socket.end();
@@ -40,7 +56,7 @@ export const connect = (socket: Bun.Socket<SocketData>, packet: ConnectPacket) =
     }
 
     // check if name is unique
-    const nameIsTaken = [ ...ConnectedClients.values() ].some(client => { return client.data.name === packet.name });
+    const nameIsTaken = [ ...ConnectedClients.values() ].some(client => { return client.data.name?.toLowerCase() === packet.name.toLowerCase() });
     if (nameIsTaken || packet.name.toLowerCase().includes("system")) {
         Log.warning(`${socket.remoteAddress} failed auth - name "${packet.name}" already taken`);
         send(socket, { type: "ERROR", reason: "Name already taken" });

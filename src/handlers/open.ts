@@ -6,6 +6,7 @@ export const open = (socket: Bun.Socket<SocketData>) => {
     socket.data = {
         uuid: randomUUIDv7(),
         name: null,
+        nonce: null,
         awaitingPong: false,
         disconnecting: false,
         rateLimit: {

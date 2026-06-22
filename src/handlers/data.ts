@@ -1,10 +1,14 @@
 import type { SocketData, ClientPacket } from '../types';
 import { connect } from './connect';
+import { login } from './login';
 import Log from '../logger';
 import { chat } from './chat';
 import { pong } from './pong';
 import { disconnect } from './disconnect';
 import { send } from '../utils';
+
+// packets a client may send before it has authenticated (i.e. before a name is set)
+const PRE_AUTH_TYPES = new Set(["LOGIN", "CONNECT"]);
 
 export const data = (socket: Bun.Socket<SocketData>, data: Buffer<ArrayBufferLike>) => {
     // Incoming message
@@ -22,7 +26,7 @@ export const data = (socket: Bun.Socket<SocketData>, data: Buffer<ArrayBufferLik
 
     Log.debug(`← ${socket.remoteAddress} ${data.toString()}`);
 
-    if (packet.type !== "CONNECT" && !socket.data.name) {
+    if (!socket.data.name && !PRE_AUTH_TYPES.has(packet.type)) {
         Log.warning(`${socket.remoteAddress} sent ${packet.type} before authenticating - disconnecting`);
         send(socket, { type: "ERROR", reason: "Not authenticated" });
         socket.end();
@@ -30,6 +34,7 @@ export const data = (socket: Bun.Socket<SocketData>, data: Buffer<ArrayBufferLik
     }
 
     switch (packet.type) {
+        case "LOGIN":      login(socket); break;
         case "CONNECT":    connect(socket, packet); break;
         case "CHAT":       chat(socket, packet); break;
         case "PONG":       pong(socket); break;

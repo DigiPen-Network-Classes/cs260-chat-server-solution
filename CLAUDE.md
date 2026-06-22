@@ -15,13 +15,16 @@ server exposes only a `/health` endpoint.
 bun install            # install dependencies
 bun run start          # run the server (src/index.ts); requires env vars below
 bun ./src/index.ts     # equivalent direct run
+bun test               # run the integration tests in tests/
 
 docker compose up --build   # run via Docker (reads .env)
 ```
 
-There is **no test suite, linter, or build step** — Bun executes the TypeScript
-directly. `tsconfig.json` is configured for type-checking/IDE only
-(`noEmit`, bundler resolution).
+There is **no linter or build step** — Bun executes the TypeScript directly.
+`tsconfig.json` is configured for type-checking/IDE only (`noEmit`, bundler
+resolution). Tests live in `tests/` and use `bun test`; each test spawns a real
+server subprocess on an ephemeral port and exercises the wire protocol over TCP
+(no mocking), so they double as documentation of the handshake.
 
 ### Required environment
 
@@ -37,24 +40,29 @@ protocol and `Bun.serve` for the HTTP health check. Both ports must be set.
 **Wire protocol** is JSON, one packet per line (`\n`-terminated, added in
 `send`). Packet shapes and the `ClientPacket`/`ServerPacket` discriminated
 unions live in `src/types.ts` — this is the source of truth for the protocol.
-Client→server types currently handled: `CONNECT`, `CHAT`, `PONG`, `DISCONNECT`.
-Server→client: `HELLO`, `CONNECTED_USERS`, `MESSAGE`, `SYSTEM`,
-`MESSAGE_HISTORY`, `PING`, `ERROR`. The full `ClientPacket`/`ServerPacket` unions
+Client→server types currently handled: `LOGIN`, `CONNECT`, `CHAT`, `PONG`,
+`DISCONNECT`. Server→client: `AUTHENTICATE`, `HELLO`, `CONNECTED_USERS`,
+`MESSAGE`, `SYSTEM`, `MESSAGE_HISTORY`, `PING`, `ERROR`. The full `ClientPacket`/`ServerPacket` unions
 are now exhaustively handled, so the `default` case in `data.ts` casts `packet`
 (typed `never`) to read the runtime `type` string.
 
 **Socket lifecycle / handler dispatch** (`src/handlers/`): `socketHandlers` in
 `handlers/index.ts` wires Bun's socket callbacks (`open`, `data`, `close`,
 `error`, `drain`). The router is `handlers/data.ts` — it JSON-parses each
-buffer, enforces that the first packet must be `CONNECT` (otherwise disconnect),
-then switches to per-type handlers (`connect.ts`, `chat.ts`). To add a protocol
-message: define the packet type in `types.ts`, add a handler file, and add a
-`case` in `data.ts`.
+buffer, enforces that before authentication only `LOGIN`/`CONNECT` are allowed
+(otherwise disconnect), then switches to per-type handlers (`login.ts`,
+`connect.ts`, `chat.ts`). To add a protocol message: define the packet type in
+`types.ts`, add a handler file, and add a `case` in `data.ts`.
 
 **Per-connection state** lives on `socket.data` (typed `SocketData`),
 initialized in `open.ts` with a generated UUID and rate-limit counters.
-Authentication = a successful `CONNECT` sets `socket.data.name`; the presence of
-`name` is what marks a socket as authenticated throughout the code. The
+Authentication is a two-step challenge-response: the client sends `LOGIN`,
+`login.ts` issues a one-time `nonce` (stored on `socket.data.nonce`) via an
+`AUTHENTICATE` reply, then the client sends `CONNECT` whose `token` must equal
+`sha256(name + AUTH_TOKEN + nonce)` (hex). `connect.ts` recomputes and compares
+the hash, consuming the nonce (set back to `null`) on use. A successful `CONNECT`
+sets `socket.data.name`; the presence of `name` is what marks a socket as
+authenticated throughout the code. The
 `disconnecting` flag is set whenever the *server* intentionally ends a socket
 (DISCONNECT handler, heartbeat timeout, shutdown); the `close` handler uses it to
 warn when an authenticated client closes its own TCP connection cleanly without
