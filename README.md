@@ -12,6 +12,7 @@ bun run start
 ```
 
 A health-check endpoint is served separately at `GET http://<host>:<HTTP_PORT>/health` → `200 OK`.
+Note that as of now there are no other HTTP endpoints.
 
 ## Protocol
 
