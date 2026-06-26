@@ -1,0 +1,3 @@
+#!/bin/bash
+set -e 
+docker push trasa/cs260-chat-server:latest

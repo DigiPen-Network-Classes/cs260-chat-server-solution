@@ -3,8 +3,7 @@ import type { ConnectPacket, Message, SocketData } from "../types";
 import { send, broadcast, systemMessage } from "../utils";
 import { MAX_NAME_LENGTH, MessageHistory } from "../state";
 import { ConnectedClients } from "../state";
-
-const AUTH_TOKEN = process.env.AUTH_TOKEN || "";
+import { AUTH_TOKEN } from "../auth";
 
 export const connect = (socket: Bun.Socket<SocketData>, packet: ConnectPacket) => {
     if (!packet.token || !packet.name) {

@@ -4,14 +4,12 @@ import type { SocketData } from './types';
 import { broadcast, startHeartbeat } from './utils';
 import { ConnectedClients, HEARTBEAT_INTERVAL, MessageHistory } from './state';
 
-const AUTH_TOKEN = process.env.AUTH_TOKEN;
+// Resolving AUTH_TOKEN (from env or AUTH_TOKEN_FILE) exits the process if it is
+// missing/invalid, so importing this module enforces that requirement.
+import './auth';
+
 const PORT       = process.env.PORT;
 const HTTP_PORT  = process.env.HTTP_PORT;
-
-if (!AUTH_TOKEN) {
-    Log.fatal("AUTH_TOKEN is not set");
-    process.exit(1);
-}
 
 if (!PORT || isNaN(Number(PORT))) {
     Log.fatal("PORT is not set or is not a number");
